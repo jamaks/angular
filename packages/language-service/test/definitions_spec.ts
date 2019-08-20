@@ -254,6 +254,20 @@ describe('definitions', () => {
     }
   });
 
+  it('should be able to find a template from a url', () => {
+    const fileName = addCode(`
+      @Component({
+        templateUrl: './app.component.ng';
+      })
+    `);
+    mockHost.override('/app/app.component.ng', '<title>Hello!</title>');
+
+    debugger;
+    const result = ngService.getDefinitionAt(fileName, mockHost.readFile(fileName)!.indexOf('./app.component.ng'));
+
+    expect(result).toBeDefined();
+  });
+
   /**
    * Append a snippet of code to `app.component.ts` and return the file name.
    * There must not be any name collision with existing code.

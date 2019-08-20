@@ -9,7 +9,9 @@
 import * as ts from 'typescript'; // used as value and is provided at runtime
 import {TemplateInfo} from './common';
 import {locateSymbol} from './locate_symbol';
-import {Span} from './types';
+import {Span, TemplateSource} from './types';
+import {findTightestNode} from './utils';
+import * as path from 'path';
 
 /**
  * Convert Angular Span to TypeScript TextSpan. Angular Span has 'start' and
@@ -52,4 +54,29 @@ export function getDefinitionAndBoundSpan(info: TemplateInfo): ts.DefinitionInfo
   return {
       definitions, textSpan,
   };
+}
+
+export function getTsDefinitionAndBoundSpan(sf: ts.SourceFile, position: number, getT: (file: string) => TemplateSource[]): ts.DefinitionInfoAndBoundSpan|undefined {
+  const node = findTightestNode(sf, position);
+  if (!node) return;
+  if (ts.isStringLiteralLike(node)) {
+    const parent = node.parent;
+    if (ts.isPropertyAssignment(parent) && parent.name.getText() !== "templateUrl") {
+      const url = path.join(path.dirname(sf.fileName), node.text);
+      const t = getT(node.text);
+      return {
+        definitions: t.map(tmpl => {
+          return {
+            kind: ts.ScriptElementKind.externalModuleName,
+            name: node.text,
+            containerKind: ts.ScriptElementKind.unknown,
+            containerName: '',
+            textSpan: ngSpanToTsTextSpan(tmpl.span),
+            fileName: url,
+          };
+        }),
+        textSpan: {start: node.getStart(), length: node.getWidth(),},
+      };
+    }
+  }
 }
